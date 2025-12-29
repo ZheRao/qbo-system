@@ -1,6 +1,42 @@
 
 
-QBO ETL 
+code structure
+
+    - PL module
+
+        -- future ideas 
+            
+            --- state of QBOClient 
+
+                    class QBOClient:
+                        def __init__(self, base_url: str, token: str, company_id: str):
+                            self.base_url = base_url
+                            self.token = token
+                            self.company_id = company_id
+
+                        def fetch_pl(self, start, end):
+                            ...
+        
+            
+
+modular design additional measures 
+
+    - qbl_etl
+
+        -- pl 
+
+            --- flatten.py 
+
+                ---- add logging through 'import logging'
+                        metadata = col.get("MetaData") or []
+                        if not metadata:
+                            logger.warning("Column without MetaData encountered: %r", col)
+                            continue
+
+
+
+
+code logic
 
     - PL/GL
 
@@ -102,6 +138,9 @@ QBO ETL
                 ---- different parallelism for extract - transform jobs 
 
                 ---- bucket before yield to reduce IO between python/JVM
+
+
+
 
                 
 

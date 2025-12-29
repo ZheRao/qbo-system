@@ -1,34 +1,39 @@
 {
-  "systeminfo": {
-    "last_load_date": "2000-01-01",
-    "last_fx": 1.4116
-  },
-  "companyinfo": {
-    "us_companies": ["MFUSA", "MFAZ", "MSUSA", "MPUSA"],
-    "ca_companies": ["MSL", "NexGen", "MFBC", "MPL", "MFL"]
-  },
-  
-  "directories": {
-    "base": "projects/ETLPipeline/Database",
-
-    "credentials": {
-      "QBO": ".inputs/dev"
+    "systeminfo": {
+        "last_load_date": "2025-11-17",
+        "last_fx": 1.4
     },
-    
-    "bronze": {
-      "QBO": {
-        "PL": "Bronze/QBO/PL",
-        "GL": "Bronze/QBO/GL"
-      }
+    "companyinfo": {
+        "us_companies": [
+            "MFUSA",
+            "MFAZ",
+            "MSUSA",
+            "MPUSA"
+        ],
+        "ca_companies": [
+            "MSL",
+            "NexGen",
+            "MFBC",
+            "MPL",
+            "MFL"
+        ]
     },
-    
-    "silver": {
-      "QBO": {
-        "PLV0": "Silver/QBO/PL_v0",
-        "GL": "Silver/QBO/GL"
-      }
+    "directories": {
+        "base": "projects/ETLPipeline/Database",
+        "credentials": {
+            "QBO": ".inputs/dev"
+        },
+        "bronze": {
+            "QBO": {
+                "PL": "Bronze/QBO/PL",
+                "GL": "Bronze/QBO/GL"
+            }
+        },
+        "silver": {
+            "QBO": {
+                "PLV0": "Silver/QBO/PL_v0",
+                "GL": "Silver/QBO/GL"
+            }
+        }
     }
-  }
-  
-
 }
