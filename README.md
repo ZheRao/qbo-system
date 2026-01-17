@@ -109,9 +109,6 @@ src/qbo_etl
 │   ├── contracts/          # Schema & business contracts
 │   └── io/
 │       └── database.path.json
-├── pl/                     # Profit & Loss domain logic
-│   ├── extract.py
-│   └── business_rules.py
 ├── silver/                 # JSON → tabular transformations
 │   └── flatten.py
 ├── utils/                  # Shared utilities
