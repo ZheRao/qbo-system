@@ -1,0 +1,17 @@
+{
+    "company_code": {
+        "us_companies": [
+            "MFUSA",
+            "MFAZ",
+            "MSUSA",
+            "MPUSA"
+        ],
+        "ca_companies": [
+            "MSL",
+            "NexGen",
+            "MFBC",
+            "MPL",
+            "MFL"
+        ]
+    }
+}
