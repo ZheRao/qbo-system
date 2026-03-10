@@ -18,6 +18,11 @@ poetry*
 
 # Dev code
 scripts/extract_input.sh
+src/qbo_etl/dev/
 
 # .pdf exports for .md files
 *.pdf
+
+# company info
+src/qbo_etl/json_configs/io/
+src/qbo_etl/json_configs/contracts/
