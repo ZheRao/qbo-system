@@ -1,151 +1,88 @@
-# QBO Data System
+# Generic Data Platform (Initial Implementation)
 
-## Overview
+### Overview
 
-This repository implements a **scalable, production-oriented data extraction and transformation framework** for **QuickBooks Online (QBO)**.
+This repository implements the **initial version of a generic data ingestion platform** for transforming semi-structured API data into structured datasets.
 
-The system is designed to:
-- Extract multiple QBO entities and reports (e.g. Profit & Loss, General Ledger, raw tables)
-- Persist raw and transformed data using a **Bronze / Silver / Gold** layered architecture
-- Flatten semi-structured QBO JSON payloads into **partitioned, analytics-ready tabular datasets**
-- Serve as a durable pipeline into **Power BI** via SharePoint file sync (Windows-based), as a pragmatic compromise in the absence of Azure/AWS infrastructure
+The system was first developed for **QuickBooks Online (QBO)** but is designed so that:
+- **framework mechanics remain stable**
+- **source-specific semantics are externalized**
 
-This repo represents a **personal milestone** toward building **industrialized data systems that are modular, documented, externally configured, and designed to last**.
+The goal is to build **durable data infrastructure**, not one-off ETL pipelines.
 
+## Core Architecture
 
-## Design Principles
+The platform separates **data mechanics** from **data meaning**.
 
-- **Framework-first, not task-first**  
-  This is not a one-off ETL job. The system is designed to scale across:
-  - New QBO entities
-  - Additional companies
-  - New fiscal periods
-  - Additional downstream consumers
+Framework responsibilities:
+- hierarchical JSON traversal
+- schema discovery
+- structural normalization
+- distributed processing (Spark)
 
-- **Strict compartmentalization**  
-  I/O, ingestion, transformation, and business logic are separated by responsibility.
+External configuration defines:
+- column mappings
+- schema contracts
+- company-specific logic
 
-- **Externalized configuration**  
-  Paths, schemas, contracts, and business mappings live outside code whenever possible.
+This allows the same framework to ingest **multiple sources and organizations** without rewriting core logic.
 
-- **Layered storage, not layered modules**  
-  Bronze / Silver / Gold are **storage concepts**, not Python submodules. This allows storage backends to evolve independently of code.
+## Data Layers
 
-## What This System Does
+The system follows a **Bronze / Silver / Gold** architecture.
 
-### 1. Extract (Bronze Layer)
+**Bronze — Raw Source Data**
+- Raw API responses stored unchanged
+- Immutable source of truth
 
-- Extracts data from QBO API:
-  - Financial reports (e.g. Profit & Loss, General Ledger)
-  - Raw entity tables
-- Supports:
-  - Multiple sub-companies
-  - Configurable fiscal years / periods
-- Handles:
-  - Authentication and token refresh
-  - Distributed / parallel HTTP extraction (Spark-capable)
-- Writes **raw API payloads** to the **Bronze** layer with partitioned paths:
+**Silver — Structural Data**
+- Nested JSON flattened into structured datasets
+- Source-faithful normalization
 
+**Gold — Business Data**
+- Column mappings
+- reporting logic
+- analytics-ready datasets
+
+## Structural Invariants
+
+The system is built around a few strict invariants.
+
+### 1. Preserve Raw Truth
 ```text
-QBO/
-  data_type=pl/
-  company_code=XXX/
-  year_month=YYYY-MM/
+Raw API → Bronze → Silver → Gold
 ```
+- No transformation occurs before Bronze.
 
-> Bronze is treated as **immutable raw truth** — no schema assumptions, no transformations.
+### 2. Mechanics Before Semantics
 
----
-### 2. Transform (Silver Layer)
+- Framework code handles **structure**.  
+- Business meaning is defined through **external contracts**.
 
-- Flattens nested JSON structures into tabular form
+### 3. Structure-Driven Traversal
+- Semi-structured APIs are treated as **hierarchical object systems**.
+- Nodes are processed by **structural signatures**, not ad-hoc case logic.
+- Data extraction occurs only at **terminal data nodes**.
 
-- Applies:
-    - Schema normalization
-    - Column standardization
-    - Type coercion
+### 4. Unknown Structures Must Fail
 
-- Writes clean, structured outputs as:
-    - Parquet (primary)
-    - CSV (optional / compatibility)
+The system fails loudly when encountering unrecognized structures.
 
-> Silver represents **standardized, reusable data assets** independent of business rules.
+Errors reveal:
+- schema variation
+- missing invariants
+- API evolution
 
---- 
-### 3. Curate (Gold Layer)
+## Current Source
 
-- Applies final business logic and reporting rules
-- Produces analytics-ready tables aligned with reporting needs
-- Writes outputs directly to a Windows filesystem directory synced with SharePoint
-    - Enables downstream Power BI consumption
-    - Chosen intentionally due to lack of current Azure/AWS migration
+QuickBooks Online serves as the **first production test case** for the platform, particularly its deeply nested financial report structures.
 
-> Gold is consumer-facing and opinionated by design.
+## Repository Purpose
 
-## Downstream Consumers
+This project represents a shift from data scripting to data systems engineering.
 
-Gold datasets currently power:
-- Executive dashboards
-- HR dashboards (*partial*)
-- Operational / pillar dashboards
-
-The framework is intentionally generic enough to support:
-- Budgeting systems
-- Forecasting
-- HR analytics
-- Additional finance workflows
-
-## Repository Structure
-
-Current `src/qbo_etl` layout:
-
-```text
-src/qbo_etl
-├── ingestion/              # API extraction orchestration
-├── io/                     # File system I/O abstractions
-│   ├── file_read.py
-│   └── file_write.py
-├── json_configs/           # Externalized configs & contracts
-│   ├── contracts/          # Schema & business contracts
-│   └── io/
-│       └── database.path.json
-├── silver/                 # JSON → tabular transformations
-│   └── flatten.py
-├── utils/                  # Shared utilities
-│   └── task_schedular.py
-└── __init__.py
-```
-
-## Configuration & Secrets
-
-- All paths, schemas, and contracts are externally defined
-- Secrets and credentials are intentionally excluded from the repository
-- Storage locations for Bronze / Silver / Gold are configured outside code
-
-## Current Limitations (Explicit & Intentional)
-
-Given time constraints and an active refactor phase:
-- ❌ Unit tests are **temporarily not implemented**
-- ❌ Structured logging is **temporarily not implemented**
-
-These are **known and accepted tradeoffs**, not omissions by accident.  
-The system architecture is designed to support both once stability is reached.
-
-## Why This Repo Exists
-
-This project marks a **transition from scripting to system-building**.
-
-Key milestones represented here:
-- Treating data pipelines as long-lived infrastructure
-- Designing for scale before feature completeness
-- Making architecture, constraints, and tradeoffs explicit
-- Prioritizing clarity, documentation, and external contracts
-
-This repository is a foundation — not an endpoint.
-
-## Future Directions
-
-- Formal unit testing and test data contracts
-- Structured logging and observability
-- Full cloud migration (Azure / AWS)
-- Unified data platform built on the same architectural principles
+The objective is a platform that is:
+- structurally robust
+- externally configurable
+- resilient to schema variation
+- designed to evolve

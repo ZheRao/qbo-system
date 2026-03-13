@@ -1,7 +1,7 @@
 [project]
-name = "qbo-system"
+name = "data-platform"
 version = "0.1.0"
-description = "Spark refactor for QBO ETL"
+description = "Currently focusing on QBO ETL with PySpark"
 authors = [
     {name = "ZheRao",email = "zheraoeminem@gmail.com"}
 ]
@@ -23,10 +23,10 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-name = "qbo-system"
+name = "data-platform"
 
 packages = [
-  { include = "qbo_etl", from = "src" }
+  { include = "data_platform", from = "src" }
 ]
 
 [dependency-groups]
