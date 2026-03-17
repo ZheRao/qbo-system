@@ -1,5 +1,5 @@
 """
-src.qbo_etl.utils.spark
+src.data_platform.core.utils.spark
 
 Purpose:
     - initialize spark sessions
@@ -12,19 +12,9 @@ from __future__ import annotations
 from typing import Mapping 
 from pyspark.sql import SparkSession 
 
-DEFAULT_SPARK_CONFIG: dict[str, str] = {
-    # correctness / reproducibility
-    "spark.sql.session.timeZone": "America/Regina",
+from data_platform.core.utils.filesystem import read_configs
 
-    # local developer ergonomics
-    "spark.ui.showConsoleProgress": "true",
-
-    # local performance defaults
-    "spark.sql.shuffle.partitions": "8",
-
-    # resource defaults
-    "spark.driver.memory": "4g",
-}
+DEFAULT_SPARK_CONFIG: dict[str, str] = read_configs(source_system="core", config_type="system", name="spark.json")["default"]
 
 def start_spark(
         app_name: str = "qbo-etl-local",
