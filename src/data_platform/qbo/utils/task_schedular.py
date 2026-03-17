@@ -2,10 +2,21 @@
 src.data_platform.qbo.silver.task_schedular
 
 Purpose:
-    - create spark jobs as a list of dictionaries, so the meta-data of each job is encoded into one single element of the list
+    - create spark jobs as a list of dictionaries, so the meta-data (invariants) of each job is encoded into one single element of the list
 
 Exposed API:
-    - `create_jobs` - returns a list of dictionaries with keys `['company', 'start', 'end', 'out_path']`
+    - `create_jobs` - returns a list of dictionaries with keys `['company', 'start', 'end']`
+
+Note for creating jobs:
+    - Must have 
+        - company
+        - start
+        - end
+    - Other consideration
+        - auth token: instead of appending the token to each task and take up a lot of space,   
+        just broadcast the auth dictionary, after refresh every company, to ingest Spark jobs
+        - bronze path: can be derived from company + start_year + start_month
+        - silver path: Spark partitioned by Company and Fiscal Year - broadcast to jobs
 """
 
 from __future__ import annotations
@@ -25,7 +36,6 @@ _QUARTER_START_MONTHS = (1, 4, 7, 10)
 
 def create_jobs(
     companies: Sequence[str],
-    out_path: str ="",
     scope: Optional[Sequence[int]] = None,
 ) -> list[FlattenTask]:
     """
@@ -34,7 +44,6 @@ def create_jobs(
             "company": "xxx",
             "start": "2024-10-01",
             "end": "2024-12-31",
-            "out_path": "/path/to/silver/pl"
         }
     """
     # set default scope if not passed
@@ -51,7 +60,6 @@ def create_jobs(
             "company": company, 
             "start": start.isoformat(),
             "end": end.isoformat(),
-            "out_path": out_path
         })
         # create task for every quarter in the scope - skip quarters that hasn't come 
         for year in scope:  
@@ -64,6 +72,5 @@ def create_jobs(
                     "company": company, 
                     "start": start.isoformat(),
                     "end": end.isoformat(),
-                    "out_path": out_path
                 })
     return tasks
