@@ -58,7 +58,7 @@ def _identify_node_type(node: dict) -> str:
     else:
         return "Account"
 
-def _extract_data_node(node: dict, columns: list[str], acc_info:dict[str,str]) -> dict:
+def _extract_data_node(node: dict, columns: list[str], acc_info:dict[str,str], company_info:str) -> dict:
     """
     Purpose:
         - given a data node and raw column names, extract actual record as a dictionary
@@ -75,9 +75,10 @@ def _extract_data_node(node: dict, columns: list[str], acc_info:dict[str,str]) -
             records[column_name+"_id"] = column_id
     for k, v in acc_info.items():
         records[k] = v
+    records["corp"] = company_info
     return records
 
-def _crawler(node:dict, columns: list[str], acc_info:dict[str,str]|None = None) -> Iterator[Dict[str,str]]:
+def _crawler(node:dict, columns: list[str],  company_info:str, acc_info:dict[str,str]|None = None) -> Iterator[Dict[str,str]]:
     """
     Purpose:
         - generator that `yield` leaf node data records
@@ -90,7 +91,7 @@ def _crawler(node:dict, columns: list[str], acc_info:dict[str,str]|None = None) 
     elif node_type in ["Category", "Include Data For Parent"]:
         if "Rows" in node and "Row" in node["Rows"]:
             for sub_node in node["Rows"]["Row"]:
-                yield from _crawler(node=sub_node, columns=columns, acc_info=acc_info)
+                yield from _crawler(node=sub_node, columns=columns, acc_info=acc_info, company_info=company_info)
         else: 
             return
     # for Account node, extract info and continue
@@ -99,12 +100,12 @@ def _crawler(node:dict, columns: list[str], acc_info:dict[str,str]|None = None) 
         acc_info = {"AccFull": acc_data["value"], "AccID": acc_data["id"]}
         if "Rows" in node and "Row" in node["Rows"]:
             for sub_node in node["Rows"]["Row"]:
-                yield from _crawler(node=sub_node, columns=columns, acc_info=acc_info)
+                yield from _crawler(node=sub_node, columns=columns, acc_info=acc_info, company_info=company_info)
         else: 
             raise ValueError(f"Ending on an account node: account info - {acc_info}")
     # Data node, extract data
     elif node_type == "Data":
-        record = _extract_data_node(node=node,columns=columns,acc_info=acc_info)
+        record = _extract_data_node(node=node,columns=columns,acc_info=acc_info, company_info=company_info)
         yield record
     else:
         raise ValueError(f"Unrecognized Node Type - node summary - {node['Summary']}")
