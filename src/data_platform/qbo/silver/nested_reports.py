@@ -5,7 +5,7 @@ Purpose:
     - ingest raw Bronze nested JSON data structure, convert into tabular format and write out as spark data frame in parquet format
 
 Exposed API:
-    - `` - 
+    - `crawler()` - given `node`, `columns`, `company_info`, crawl through all sub nodes to extract data from all leaf nodes
 """
 from typing import Iterator, Dict
 
@@ -78,10 +78,15 @@ def _extract_data_node(node: dict, columns: list[str], acc_info:dict[str,str], c
     records["corp"] = company_info
     return records
 
-def _crawler(node:dict, columns: list[str],  company_info:str, acc_info:dict[str,str]|None = None) -> Iterator[Dict[str,str]]:
+def crawler(node:dict, columns: list[str],  company_info:str, acc_info:dict[str,str]|None = None) -> Iterator[Dict[str,str]]:
     """
     Purpose:
-        - generator that `yield` leaf node data records
+        - generator that `yield` leaf node data records from crawling through all sub nodes of current node
+    Input:
+        - `node`: nested dictionary from raw data from QBO API
+        - `columns`: expected columns, should be extracted directly from report meta data
+        - `company_info`: company code
+        - `acc_info`: account info carried to consolidate with leaf node transaction, should not be provided, it would be overwritten anyway
     """
     node_type = _identify_node_type(node=node)
     # for Category End or Summary Only node, end here
@@ -91,7 +96,7 @@ def _crawler(node:dict, columns: list[str],  company_info:str, acc_info:dict[str
     elif node_type in ["Category", "Include Data For Parent"]:
         if "Rows" in node and "Row" in node["Rows"]:
             for sub_node in node["Rows"]["Row"]:
-                yield from _crawler(node=sub_node, columns=columns, acc_info=acc_info, company_info=company_info)
+                yield from crawler(node=sub_node, columns=columns, acc_info=acc_info, company_info=company_info)
         else: 
             return
     # for Account node, extract info and continue
@@ -100,7 +105,7 @@ def _crawler(node:dict, columns: list[str],  company_info:str, acc_info:dict[str
         acc_info = {"AccFull": acc_data["value"], "AccID": acc_data["id"]}
         if "Rows" in node and "Row" in node["Rows"]:
             for sub_node in node["Rows"]["Row"]:
-                yield from _crawler(node=sub_node, columns=columns, acc_info=acc_info, company_info=company_info)
+                yield from crawler(node=sub_node, columns=columns, acc_info=acc_info, company_info=company_info)
         else: 
             raise ValueError(f"Ending on an account node: account info - {acc_info}")
     # Data node, extract data
