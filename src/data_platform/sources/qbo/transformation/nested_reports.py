@@ -5,23 +5,11 @@ Purpose:
     - ingest raw Bronze nested JSON data structure, convert into tabular format and write out as spark data frame in parquet format
 
 Exposed API:
-    - `crawler()` - given `node`, `columns`, `company_info`, crawl through all sub nodes to extract data from all leaf nodes
+    - `flatten_one_file()` - given `company`, `start`, `path`, load file, crawl through and yield all data nodes
 """
 from typing import Iterator, Dict
-
-def _extract_column_meta(obj:dict) -> list[str]:
-    """
-    Purpose:
-        - input the dict object from reading JSON raw file
-        - extract and return the column names for the file
-        - error if column meta data is missing
-    """
-    try:
-        meta = obj["Columns"]["Column"]
-    except Exception as e:
-        raise KeyError("obj['Columns']['Column'] missing from PL JSON file") from e
-    cols = [item["ColTitle"] for item in meta]
-    return cols
+import orjson
+from pathlib import Path
 
 def _identify_node_type(node: dict) -> str:
     """
@@ -78,7 +66,7 @@ def _extract_data_node(node: dict, columns: list[str], acc_info:dict[str,str], c
     records["corp"] = company_info
     return records
 
-def crawler(node:dict, columns: list[str],  company_info:str, acc_info:dict[str,str]|None = None) -> Iterator[Dict[str,str]]:
+def _crawler(node:dict, columns: list[str],  company_info:str, acc_info:dict[str,str]|None = None) -> Iterator[Dict[str,str]]:
     """
     Purpose:
         - generator that `yield` leaf node data records from crawling through all sub nodes of current node
@@ -96,16 +84,16 @@ def crawler(node:dict, columns: list[str],  company_info:str, acc_info:dict[str,
     elif node_type in ["Category", "Include Data For Parent"]:
         if "Rows" in node and "Row" in node["Rows"]:
             for sub_node in node["Rows"]["Row"]:
-                yield from crawler(node=sub_node, columns=columns, acc_info=acc_info, company_info=company_info)
+                yield from _crawler(node=sub_node, columns=columns, acc_info=acc_info, company_info=company_info)
         else: 
             return
     # for Account node, extract info and continue
     elif node_type == "Account":
         acc_data = node["Header"]["ColData"][0]
-        acc_info = {"AccFull": acc_data["value"], "AccID": acc_data["id"]}
+        acc_info = {"acc_full": acc_data["value"], "acc_id": acc_data["id"]}
         if "Rows" in node and "Row" in node["Rows"]:
             for sub_node in node["Rows"]["Row"]:
-                yield from crawler(node=sub_node, columns=columns, acc_info=acc_info, company_info=company_info)
+                yield from _crawler(node=sub_node, columns=columns, acc_info=acc_info, company_info=company_info)
         else: 
             raise ValueError(f"Ending on an account node: account info - {acc_info}")
     # Data node, extract data
@@ -115,4 +103,38 @@ def crawler(node:dict, columns: list[str],  company_info:str, acc_info:dict[str,
     else:
         raise ValueError(f"Unrecognized Node Type - node summary - {node['Summary']}")
     
+def _extract_column_meta(obj:dict) -> list[str]:
+    """
+    Purpose:
+        - input the dict object from reading JSON raw file
+        - extract and return the column names for the file
+        - error if column meta data is missing
+    """
+    try:
+        meta = obj["Columns"]["Column"]
+    except Exception as e:
+        raise KeyError("obj['Columns']['Column'] missing from PL JSON file") from e
+    cols = [item["ColTitle"].replace(" ", "_").replace("/", "_").lower() for item in meta]
+    return cols
     
+def flatten_one_file(company:str, start:str, path:Path|str) -> Iterator[Dict[str,str]]:
+    """
+    Purpose:
+        - flatten one file
+        - call `_crawler()` on every node existing at the first level `obj["Rows"]["Row"]`
+    Input:
+        - `company`: company code
+        - `start`: period start for the report, tied to naming of the bronze files, ISO format
+        - `path`: root path to the bronze storage
+    """
+    if isinstance(path, str): path = Path(path)
+    date_split = start.split("-")
+    file_name = f"{company}/{date_split[0]}_{date_split[1].replace('0','')}.json"
+    with open(path / file_name, "rb") as f:
+        raw = f.read()
+    obj = orjson.loads(raw)
+    if obj.get("Rows", {}) and obj["Rows"].get("Row", []):
+        cols = _extract_column_meta(obj=obj)
+        for node in obj["Rows"]["Row"]:
+            yield from _crawler(node=node,columns=cols,company_info=company)
+
