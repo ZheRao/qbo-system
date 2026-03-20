@@ -1,5 +1,5 @@
 """
-src.data_platform.core.utils.spark
+src.data_platform.core.engine.spark
 
 Purpose:
     - initialize spark sessions
