@@ -1,0 +1,12 @@
+{
+    "run_time": {
+        "num_cores": 8,
+        "slice_multiplier": 3,
+        "partition_per": 1
+    },
+    "write": {
+        "mode": "overwrite",
+        "format": "parquet"
+    }
+    
+}
