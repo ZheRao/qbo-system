@@ -3,6 +3,7 @@
         "spark.sql.session.timeZone": "America/Regina",
         "spark.ui.showConsoleProgress": "true",
         "spark.sql.shuffle.partitions": "8",
-        "spark.driver.memory": "4g"
+        "spark.driver.memory": "4g",
+        "spark.sql.sources.partitionOverwriteMode": "dynamic"
     }
 }
