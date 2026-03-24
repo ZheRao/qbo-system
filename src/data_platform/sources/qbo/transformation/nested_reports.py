@@ -12,7 +12,7 @@ from typing import Iterator, Dict
 import orjson
 from pathlib import Path
 
-from src.data_platform.sources.qbo.transformation.column_discovery import extract_column_meta
+from data_platform.sources.qbo.transformation.schema_discovery import extract_column_meta, resolve_json_path
 
 def _identify_node_type(node: dict) -> str:
     """
@@ -117,12 +117,9 @@ def flatten_one_file(company:str, start:str, path:Path|str) -> Iterator[Dict[str
         - `start`: period start for the report, tied to naming of the bronze files, ISO format
         - `path`: root path to the bronze storage
     """
-    if isinstance(path, str): path = Path(path)
-    date_split = start.split("-")
-    file_name = f"{company}/{date_split[0]}_{int(date_split[1])}.json"
-    file_path = path / file_name
+    file_path = resolve_json_path(company_code=company, start=start, raw_path=path)
     if file_path.exists():
-        with open(path / file_name, "rb") as f:
+        with open(file_path, "rb") as f:
             raw = f.read()
         obj = orjson.loads(raw)
         if obj.get("Rows", {}) and obj["Rows"].get("Row", []):
