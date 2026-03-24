@@ -12,7 +12,7 @@ from typing import Iterator, Dict
 import orjson
 from pathlib import Path
 
-from data_platform.sources.qbo.transformation.col_discovery import extract_column_meta
+from src.data_platform.sources.qbo.transformation.column_discovery import extract_column_meta
 
 def _identify_node_type(node: dict) -> str:
     """
