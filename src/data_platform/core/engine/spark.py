@@ -2,15 +2,17 @@
 src.data_platform.core.engine.spark
 
 Purpose:
-    - initialize spark sessions
+    - standardized Spark operations
 
 Exposed API:
     - `start_spark()` - spin up spark session
+    - `generate_default_schema()` - create a default schema (`StructType`) with column list
 """
 
 from __future__ import annotations 
 from typing import Mapping 
 from pyspark.sql import SparkSession 
+from pyspark.sql.types import StructType, StructField, StringType
 
 from data_platform.core.utils.filesystem import read_configs
 
@@ -51,3 +53,14 @@ def start_spark(
     spark.sparkContext.setLogLevel(log_level)
 
     return spark
+
+def generate_default_schema(columns: list[str]) -> StructType:
+    """
+    Purpose:
+        - given a column list, generate default schema for StringType(), nullable=True
+    """
+    schema = StructType([
+        StructField(x, StringType(), True) 
+        for x in columns
+    ])
+    return schema
