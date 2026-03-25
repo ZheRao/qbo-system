@@ -17,13 +17,15 @@ Notes:
         - caution: look at designs for `create_task` and raw QBO pulls to ensure other `cut_off` is accommodated
 """
 from __future__ import annotations 
-from data_platform.sources.qbo.transformation.nested_reports import flatten_one_file
-from data_platform.core.engine.data_ops import create_fiscal_year
-from data_platform.core.utils.filesystem import read_configs
-
 from pyspark.sql import SparkSession, DataFrame as SparkDF, functions as F
 from pathlib import Path
 
+from data_platform.core.engine.spark import generate_default_schema
+from data_platform.core.engine.data_ops import create_fiscal_year
+from data_platform.core.utils.filesystem import read_configs
+
+from data_platform.sources.qbo.transformation.nested_reports import flatten_one_file
+from data_platform.sources.qbo.transformation.schema_discovery import compose_column_superset
 from data_platform.sources.qbo.utils.contracts import TaskRecord
 
 def transform_pl_spark(tasks: list[TaskRecord], scope:range|list[int], spark:SparkSession, path_config:dict) -> SparkDF:
@@ -59,8 +61,13 @@ def transform_pl_spark(tasks: list[TaskRecord], scope:range|list[int], spark:Spa
     # run the job
     rdd2 = rdd.mapPartitions(_flatten_file)
 
+    # discover all columns and create default schema
+    final_columns = compose_column_superset(tasks=tasks, raw_path=raw_path)
+    default_schema = generate_default_schema(columns = final_columns)
+    print("\nDiscovered columns superset and composed default schema")
+
     # create df and de-dup
-    df = spark.createDataFrame(rdd2)
+    df = spark.createDataFrame(rdd2, schema=default_schema)
     df = df.dropDuplicates()
 
     print(f"\n {df.count()} rows of data processed")
