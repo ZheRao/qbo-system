@@ -2,104 +2,239 @@
 
 ## Overview
 
-`data-platform` is a **generic data ingestion and transformation framework** designed to convert semi-structured external data sources into structured datasets.
+`data-platform` is a **configurable data ingestion and transformation framework** designed to convert semi-structured external data (e.g. APIs like QuickBooks Online) into structured, analysis-ready datasets.
 
-The platform was initially developed for **QuickBooks Online (QBO)** but is intentionally structured so that:
-- **platform mechanics remain stable**
-- **source-specific ingestion is isolated**
-- **business representation is externally defined**
+The system is built around a strict separation of concerns:
 
-The goal is not to produce one-off ETL pipelines, but to build **durable, reusable data infrastructure**.
+- **Platform mechanics** → how data pipelines execute
+- **Source adapters** → how external systems are ingested and normalized
+- **Business contracts** → how structured data is interpreted downstream
 
-## Core Design Principles
+This enables the platform to scale across:
+- multiple source systems
+- multiple companies (multi-tenant)
+- multiple execution environments (Pandas / PySpark)
 
-The architecture separates three different concerns:
-1. **Platform mechanics** — how ingestion pipelines run
-2. **Source mechanics** — how external systems are translated into structured data
-3. **Business meaning** — how companies interpret the structured data
+without modifying core logic.
 
-Keeping these concerns isolated allows the platform to support **multiple source systems and organizations without rewriting core logic**.
+> The goal is not to build pipelines, but to build **durable data infrastructure** that compounds over time.
 
-## Architecture
-```text
-data_platform/
-    core/              # platform mechanics
-    sources/           # source system adapters
-        qbo/
-        qbo_time/
-        ...
-    gold/              # company-specific transformations
-        templates/         # optional reusable modeling patterns
-```
-### 1. Core Layer
+## Core Principles
 
-`data_platform/core`
+### 1. No-Assumption Data Processing (Bronze / Silver)
 
-The **core layer** contains platform mechanics shared across all source systems.
+- **Bronze Layer** → raw extraction from source systems (no transformation assumptions)
+- **Silver Layer** → structural normalization (e.g. flattening nested JSON)
 
-Examples include:
-- configuration loading
-- filesystem utilities
-- execution environments (Spark / Pandas)
+Constraints:
+- no business logic
+- no fixed schema expectations
+- no company-specific assumptions
 
-Its responsibility is to answer:  
-*How should the platform run?*
+This ensures:
+- resilience to schema drift
+- portability across sources
+- reproducibility of raw truth
 
-### 2. Source Layer
+### 2. Externalized Business Logic (Gold)
 
-`data_platform/sources/<source_system>`
-
-Each external system is implemented as a **source adapter**.
+- All business meaning is defined **outside the engine**
+- Driven by **contracts and configuration**
 
 Examples:
+- entity mappings
+- location grouping
+- financial classification rules
+
+This allows:
+- multi-tenant reuse
+- zero code changes for new companies
+- controlled evolution of business logic
+
+### 3. Engine Abstraction
+
+Execution engine is configurable:
+
+- `Pandas` → local / lightweight workflows
+- `PySpark` → distributed / large-scale processing
+
+The same pipeline logic can run on either engine via configuration.
+
+### 4. Configuration-Driven System
+
+All variability is externalized:
+
+- I/O paths
+- runtime behavior (e.g. Spark configs, partitioning)
+- structural assumptions
+- contracts (business logic)
+
+This eliminates hardcoding and enables:
+- reproducible runs
+- environment portability
+- controlled system behavior
+
+
+## Architecture
+
 ```text
-sources/
-    qbo/
-    qbo_time/
+data_platform/
+    core/                      # platform mechanics
+    sources/                   # source system adapters
+        <source_name>/
+    gold/                      # business-level transformations
+        templates/
 ```
-Source adapters handle:
-- authentication
+
+### 1. Core Layer
+
+`src/data_platform/core`
+
+Responsible for **platform mechanics shared across all sources**
+
+Includes:
+- execution engine abstraction (Spark / Pandas)
+- configuration loading
+- filesystem utilities (safe read/write, atomic operations)
+- common data operations
+
+Answers:
+> How does the system run?
+
+---
+### 2. Source Layer
+
+`src/data_platform/sources/{source_name}`
+
+Each source system is implemented as an isolated adapter.
+
+Structure:
+```
+sources/{source_name}/
+    ingestion/
+    transformation/
+    json_configs/
+    utils/
+    docs/
+```
+---
+**Responsibilities:**
+
+#### `/ingestion` (Bronze Layer)
 - API extraction
-- hierarchical traversal
-- normalization of nested structures
-- construction of **Silver-layer datasets**
+- raw data retrieval
+- writes JSON (or raw format) to Bronze
 
-Source code answers:  
-*How do we translate this external system into structured internal data?*
+Flow:
+```
+API → raw data → file write (Bronze)
+```
+---
+#### `/transformation` (Silver Layer)
+- load raw data from Bronze
+- normalize structure (flattening, expansion)
+- output structured tables
 
+Flow:
+```
+Bronze → transformation → tabular dataset → file write (Silver)
+```
+---
+#### `/json_configs` (External Control Layer)
+
+All system variability is defined here:
+
+- `/io` → path configurations
+- `/system` → runtime configs (e.g. Spark write mode, partition sizing)
+- `/assumptions` → structural invariants of source data
+- `/state` → job metadata (e.g. extracted FX rates, checkpoints)
+- `/contracts` → company-specific business mappings
+
+---
+#### `/utils`
+
+Source-specific helpers:
+- API traversal
+- task scheduling (e.g. Spark `mapPartitions`)
+- normalization utilities
+
+---
+#### `/docs`
+- setup guides
+- raw data structure references
+- operational procedures
+
+---
 ### 3. Gold Layer
 
-Gold-layer transformations represent **business-specific data models**.
+`src/data_platform/gold`
 
-It depends only on:
-1. **Silver-layer datasets**
-2. **external configuration** (mappings, categories, naming rules)
+Represents **business-level transformations**
 
-This keeps business meaning separate from ingestion mechanics.
+Depends only on:
+- Silver datasets
+- external contracts
 
-Gold answers:  
-*How should this company interpret the structured data?*
+Contains:
+- reusable transformation templates
+- company-specific modeling logic
 
-## Example pipeline:
-```text
-QBO API
-  ↓
-Bronze extraction
-  ↓
-Silver normalization
-  ↓
-Gold business modeling
+Answers:
+> How should this data be interpreted?
+
+## End-to-End Flow
+```
+External API (e.g. QBO)
+        ↓
+Bronze (raw extraction)
+        ↓
+Silver (normalized tables)
+        ↓
+Gold (business models)
 ```
 
-## Project Philosophy
+## Prerequisites
 
-This project represents a shift from **data scripting** toward **data systems engineering**.
+### 1. Authentication
+API credentials / refresh tokens must be stored in:
+```
+sources/{source_name}/json_configs/io/path.json
+```
+### 2. Contracts (Required for Gold Layer)
 
-The platform is designed to be:
-- structurally robust
-- externally configurable
-- portable across organizations
-- resilient to schema variation
-- capable of long-term evolution
+Company-specific configurations must be defined in:
+```
+sources/{source_name}/json_configs/contracts/
+```
 
-The objective is to build **data infrastructure that compounds over time**.
+### 3. Environment
+- Python
+- Optional:
+    - PySpark (for distributed execution)
+    - Pandas (for local execution)
+
+## Design Intent
+
+This project is intentionally built to:
+- handle schema variability without breaking
+- separate data structure from business meaning
+- support multi-tenant scaling
+- remain engine-agnostic
+- evolve incrementally without rewrites
+
+## Future Directions
+- stronger schema enforcement at Silver layer
+- incremental processing / checkpointing
+- observability (logging, metrics, failure tracing)
+- adapter expansion beyond QBO
+- performance tuning for large-scale Spark jobs
+
+## Final Note
+
+This system reflects a shift from:
+>"writing data scripts"
+
+to
+> "building data infrastructure"
+
+The difference is durability, composability, and long-term leverage.
