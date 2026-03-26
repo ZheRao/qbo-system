@@ -19,6 +19,28 @@ without modifying core logic.
 
 > The goal is not to build pipelines, but to build **durable data infrastructure** that compounds over time.
 
+## Why This Matters
+
+Without a standardized data platform:
+
+- each new company requires rebuilding pipelines
+- schema inconsistencies break downstream logic
+- business rules leak into ingestion layers
+- data becomes unreliable and non-reproducible
+
+This platform eliminates those failure modes by enforcing:
+- strict separation of structure and meaning
+- reusable ingestion and normalization pipelines
+- configuration-driven business logic
+
+## Real-World Challenges Addressed
+
+- nested and inconsistent API structures (e.g. QBO reports)
+- schema drift across time and entities
+- multi-tenant data isolation with shared infrastructure
+- reproducible execution across environments
+- separation of business meaning from raw data structure
+
 ## Core Principles
 
 ### 1. No-Assumption Data Processing (Bronze / Silver)
@@ -208,26 +230,43 @@ sources/{source_name}/json_configs/contracts/
 ```
 
 ### 3. Environment
-- Python
-- Optional:
-    - PySpark (for distributed execution)
-    - Pandas (for local execution)
+**Supported Environments**
+- **Pandas**
+    - Compatible with: Linux, Windows
+    - Intended for: local development, lightweight workloads
+- **PySpark**
+    - Compatible with: Linux only (recommended)
+    - Intended for: distributed processing, large-scale workloads
 
-## Design Intent
+### Windows Limitation for Spark
 
-This project is intentionally built to:
-- handle schema variability without breaking
-- separate data structure from business meaning
-- support multi-tenant scaling
-- remain engine-agnostic
-- evolve incrementally without rewrites
+Running PySpark on Windows is **not supported for production use** in this system.
+
+Observed issues include:
+- unstable worker lifecycle (frequent worker crashes)
+- unreliable execution of partition-level operations
+- inconsistent behavior under parallel workloads
+
+This is especially critical because the platform relies heavily on:
+- `mapPartitions`
+- `foreachPartition`
+
+for:
+- parallelized API calls
+- nested JSON traversal
+- distributed data extraction
+
+These patterns require **stable partition-level execution**, which Windows environments do not reliably provide.
 
 ## Future Directions
 - stronger schema enforcement at Silver layer
 - incremental processing / checkpointing
-- observability (logging, metrics, failure tracing)
 - adapter expansion beyond QBO
 - performance tuning for large-scale Spark jobs
+- observability (logging, metrics, failure tracing)
+    - per-entity execution logs
+    - data validation checkpoints
+    - failure traceability
 
 ## Final Note
 
