@@ -6,6 +6,7 @@ Purpose:
 
 Exposed API:
     - `transform_pl_spark()` 
+    - `transform_pl_pandas()`
     
 Notes:
     - assumptions
@@ -70,7 +71,7 @@ def transform_pl_spark(tasks: list[TaskRecord], scope:range|list[int], spark:Spa
     df = spark.createDataFrame(rdd2, schema=default_schema)
     df = df.dropDuplicates()
 
-    print(f"\n {df.count()} rows of data processed")
+    # print(f"\n {df.count()} rows of data processed")
 
     # create fiscal_year
     df2 = create_fiscal_year(df=df, date_col="date", cut_off=11)        # external config
@@ -88,6 +89,45 @@ def transform_pl_spark(tasks: list[TaskRecord], scope:range|list[int], spark:Spa
     )
 
     return df2
+
+def transform_pl_pandas(tasks: list[TaskRecord], scope:range|list[int], path_config:dict) -> pd.DataFrame:
+    """
+    Purpose:
+        - read raw JSON files, prepare tabulated PL report with Pandas
+    Inputs:
+        - `tasks`: list of dictionaries contain `['company', 'start', 'end']`, each one corresponds to a Spark job (reading file, flatten)
+        - `scope`: `range` or list of integers representing fiscal_years for the flatten job
+        - `path_config`: the external path config JSON file, dictionary format
+    Note:
+        - one parquet per fiscal year
+    Warning:
+        - all data will be held in memory
+        - figure out how to append new records
+        - create check/create folder
+    """
+    # figure out the bronze path
+    raw_path = Path(path_config["root"]) / path_config["bronze"]["pl"]
+
+    # discover all columns
+    final_columns = compose_column_superset(tasks=tasks, raw_path=raw_path)
+    
+    # holding all records
+    records = []
+
+    for task in tasks:
+        records.extend(list(flatten_one_file(company=task["company"], start=task["start"], path=raw_path)))
+    
+    df = pd.DataFrame(records).reindex(columns=final_columns)
+    df = df.drop_duplicates()
+    print(f"Total rows processed: {len(df)}")
+
+    df = create_fiscal_year(df=df, date_col="date", cut_off=11)
+
+    # saving
+    pl_path = Path(path_config["root"]) / path_config["silver"]["pl"] / "pandas"
+    pl_path.mkdir(exist_ok=True)
+    df.to_parquet(path=pl_path/"pl.parquet")
+    return df
     
 
 
