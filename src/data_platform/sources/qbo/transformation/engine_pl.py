@@ -120,14 +120,18 @@ def transform_pl_pandas(tasks: list[TaskRecord], scope:range|list[int], path_con
     
     df = pd.DataFrame(records).reindex(columns=final_columns)
     df = df.drop_duplicates()
-    print(f"Total rows processed: {len(df)}")
 
     df = create_fiscal_year(df=df, date_col="date", cut_off=11)
 
+    df = df[df["fiscal_year"].isin(list(scope))]
+    print(f"Total rows processed: {len(df)}")
+
     # saving
     pl_path = Path(path_config["root"]) / path_config["silver"]["pl"] / "pandas"
-    pl_path.mkdir(exist_ok=True)
-    df.to_parquet(path=pl_path/"pl.parquet")
+    for fy, chunk in df.groupby("fiscal_year", sort=False):
+        save_path = pl_path / f"fiscal_year={fy}"
+        save_path.mkdir(exist_ok=True, parents=True)
+        chunk.to_parquet(path=save_path/"pl.parquet")
     return df
     
 
