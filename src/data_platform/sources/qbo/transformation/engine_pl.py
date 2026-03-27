@@ -24,7 +24,7 @@ from data_platform.core.engine.spark import generate_default_schema
 from data_platform.core.engine.data_ops import create_fiscal_year
 from data_platform.core.utils.filesystem import read_configs
 
-from data_platform.sources.qbo.transformation.nested_reports import flatten_one_file
+from data_platform.sources.qbo.transformation.single_file_traversal import flatten_one_file
 from data_platform.sources.qbo.transformation.schema_discovery import compose_column_superset
 from data_platform.sources.qbo.utils.contracts import TaskRecord
 

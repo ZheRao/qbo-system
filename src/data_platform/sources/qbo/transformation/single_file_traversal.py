@@ -1,5 +1,5 @@
 """
-src.data_platform.sources.qbo.transformation.nested_reports
+src.data_platform.sources.qbo.transformation.single_file_traversal
 
 Purpose:
     - ingest raw Bronze nested JSON data structure, convert into tabular format and write out as spark data frame in parquet format
