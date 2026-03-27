@@ -1,4 +1,4 @@
-# Global Column Schema Design for Spark PL Flatten Pipeline
+# Column Schema Discovery Design for Drifting Column Names
 
 ## Purpose
 
