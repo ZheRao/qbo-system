@@ -14,7 +14,98 @@ from pathlib import Path
 
 from data_platform.sources.qbo.transformation.schema_discovery import extract_column_meta, resolve_json_path
 
-def _identify_node_type(node: dict) -> str:
+def _identify_node_type(node:dict) -> str:
+    """
+    Purpose:
+        - given a node, assess the node type between
+            - `Data`: contains actual data
+            - `Summary Only`: discard
+            - `Include Data For Parent`: contains transactions for parent without account_info + nested children records
+            - `Category` / `Account`: extract account info if needed
+            - `Category End`: Category node without rows data and without header
+    Rules
+        - `Data`
+            - `type == "Data"`
+            - `ColData` exists
+        - `Summary Only`
+            - no `Header`
+            - no `Rows`
+            - `Summary` exists
+        - `Category End`
+            - no `Header`
+            - empty `Rows`
+            - `Summary` exists
+        - `Include Data For Parent`
+            - no `Header`
+            - `Rows` exists and is non-empty (`Row` exists inside `Rows` and is non-empty)
+            - `Summary` exists
+        - `Category` / `Account`
+            - `Header` exists
+            - `Rows` exists
+            - `Summary` exists
+            - `type == "Section"`
+            - `Account` has `Header.ColData[0].id`
+    """
+    # node attributes
+    node_type = node.get("type", "")
+    if node_type == "": raise KeyError(f"node['type'] is missing, and node type cannot be determined - node summary - {node.get('Summary')}")
+
+    # Data Node
+    if node_type == "Data":
+        if "ColData" not in node: raise KeyError(f"expecting 'ColData' in data nodes, missing 'ColData' - node - {node}")
+        data = node.get("ColData", [])
+        if not isinstance(data, list): raise TypeError(f"data_node['ColData'] expected to be list, got - {type(data)} - node - {node}")
+        if len(data) > 0: return "Data"
+        else: raise ValueError(f"data node not expected to be empty - node - {node}")
+
+    if node_type != "Section": raise ValueError(f"node['type'] not in [`Data`, `Section`], examine node - {node}")
+    
+    node_summary = node.get("Summary", [])
+    if not node_summary: raise KeyError(f"node['Summary'] is empty and it shouldn't be, check node - {node}")
+    
+    if "Header" not in node:
+        if "Rows" not in node: return "Summary Only"    # no header, no Rows -> Summary Only
+        rows = node.get("Rows")
+        if not isinstance(rows, dict): raise TypeError(f"expecting node['Rows'] to be dictionary, find {type(rows)} - node summary - {node_summary}")
+        if (rows == {}): 
+            return "Category End"    # no header, Empty Rows -> Category End
+        if "Row" not in rows:
+            raise KeyError(f"expecting node['Rows'] to be empty or contain 'Row' as the key, found non-empty node['Rows'] with keys {rows.keys()}")
+        sub_rows = rows.get("Row")
+        if not isinstance(sub_rows, list): 
+            raise TypeError(f"expected node['Rows']['Row'] to be a list, got - {type(sub_rows)} - node summary - {node_summary}")
+        if len(sub_rows) == 0: return "Category End"    # no header, empty ["Rows"]["Row"] -> category end
+        return "Include Data For Parent"
+
+    # category or account: with header, with/without ID
+    ## header check
+    header = node.get("Header")
+    if not isinstance(header, dict): raise TypeError(f"expected node['Header'] to be dict, got - {type(header)} - node summary - {node_summary}")
+    if "ColData" not in header: raise KeyError(f"expecting 'ColData' inside 'Header', missing 'ColData' - node summary - {node_summary}")
+    coldata = header.get("ColData")
+    if not isinstance(coldata, list): raise TypeError(f"expecting node['Header']['ColData'] to be list, got - {type(coldata)} - node summary - {node_summary}")
+    if len(coldata) == 0: raise ValueError(f"unknown node type (header, no ColData for account/category inference) - node summary - {node_summary}")
+    ## nested data check
+    if "Rows" not in node: raise KeyError(f"for category/account node with header, expecting 'Rows' inside node, missing - node summary - {node_summary}")
+    rows = node.get("Rows")
+    if not isinstance(rows, dict): raise TypeError(f"expecting node['Rows'] to be dictionary, find {type(rows)} - node summary - {node_summary}")
+    if "Row" not in rows:
+        raise KeyError(f"for category/account node with header, expecting 'Row' inside node['Rows'], missing - node summary - {node_summary}")
+    sub_rows = rows.get("Row")
+    if not isinstance(sub_rows, list): 
+        raise TypeError(f"expected node['Rows']['Row'] to be a list, got - {type(sub_rows)} - node summary - {node_summary}")
+    if len(sub_rows) == 0: raise ValueError(f"expected data contents to be in category/account nodes, empty node['Rows']['Row'] - node summary - {node_summary}")
+    
+    # check whether it is Account or Category node
+    header_meta = coldata[0]
+    if not isinstance(header_meta, dict): raise TypeError(f"expected elements in list of node['Header']['ColData'] to be dict, got {type(header_meta)} - node summary - {node_summary}")
+    idx = header_meta.get("id", "")
+    if idx: return "Account"
+    else: return "Category"
+    
+
+
+def _identify_node_type_old(node: dict) -> str:
     """
     Purpose:
         - input a node represented by 
