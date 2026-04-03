@@ -14,37 +14,73 @@ from pathlib import Path
 
 from data_platform.sources.qbo.transformation.schema_discovery import extract_column_meta, resolve_json_path
 
-def _identify_node_type(node:dict) -> str:
+def _identify_node_type(node: dict) -> str:
     """
     Purpose:
-        - given a node, assess the node type between
-            - `Data`: contains actual data
-            - `Summary Only`: discard
-            - `Include Data For Parent`: contains transactions for parent without account_info + nested children records
-            - `Category` / `Account`: extract account info if needed
-            - `Category End`: Category node without rows data and without header
-    Rules
-        - `Data`
-            - `type == "Data"`
-            - `ColData` exists
-        - `Summary Only`
+        - Classify a QBO JSON node into a strict, closed set of structural types
+        - Enable deterministic traversal and prevent silent schema drift
+
+    Design Philosophy:
+        - Classification is strict and fail-loud
+        - Any unexpected structure raises immediately
+        - Every node MUST map to exactly one known type
+
+    Node Types:
+        - `Data`: leaf node containing transaction records
+        - `Summary Only`: terminal summary node with no traversal structure
+        - `Category End`: structural marker indicating end of a category branch
+        - `Include Data For Parent`: transaction rows belonging to parent account (no header)
+        - `Category`: grouping node without account identity
+        - `Account`: node with account identity and nested transactions
+
+    Validation Model (Fail-Loud Ladder):
+        1. Presence check → required keys must exist → `KeyError`
+        2. Type check → values must match expected types → `TypeError`
+        3. Content check → values must be non-empty / valid → `ValueError`
+        4. Classification closure → must match exactly one node type → `ValueError`
+
+    Structural Rules:
+
+        Prerequisite:
+            - `node['type']` must exist and be either "Data" or "Section"
+
+        Data:
+            - type == "Data"
+            - `ColData` exists, is a non-empty list
+
+        Section nodes:
+            - `Summary` must exist
+
+        Summary Only:
             - no `Header`
             - no `Rows`
-            - `Summary` exists
-        - `Category End`
+
+        Category End:
             - no `Header`
-            - empty `Rows`
-            - `Summary` exists
-        - `Include Data For Parent`
+            - `Rows` exists but is empty:
+                - {} OR {"Row": []}
+
+        Include Data For Parent:
             - no `Header`
-            - `Rows` exists and is non-empty (`Row` exists inside `Rows` and is non-empty)
-            - `Summary` exists
-        - `Category` / `Account`
+            - `Rows["Row"]` exists and is a non-empty list
+
+        Category / Account:
             - `Header` exists
-            - `Rows` exists
-            - `Summary` exists
-            - `type == "Section"`
-            - `Account` has `Header.ColData[0].id`
+            - `Header["ColData"]` is non-empty list
+            - `Rows["Row"]` exists and is non-empty list
+
+            Distinction:
+                - if `Header.ColData[0].id` exists → `Account`
+                - else → `Category`
+
+    Failure Behavior:
+        - Any deviation from expected structure raises immediately
+        - Errors include contextual node summary for debugging
+
+    Rationale:
+        - QBO JSON is externally controlled and may change over time
+        - Silent tolerance risks data loss or misclassification
+        - Therefore classification must be strict and diagnostic
     """
     # node attributes
     node_type = node.get("type", "")
