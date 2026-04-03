@@ -1,144 +1,122 @@
 # System Invariants
 
-This document defines the non-negotiable architectural rules of `data-platform`.
+These are **necessary constraints** of `data-platform`.
 
-These invariants are derived from real system behavior and must not be violated.
+They define what must always be true for the system to remain correct, scalable, and interpretable.
 
 ## 1. Structure–Meaning Separation
 
-### Statement
-Data structure processing and business interpretation must be strictly separated.
+**Invariant**  
+Structure processing and business meaning must remain strictly separated.
 
-### Scope
-All layers
+**Why**  
+Mixing them destroys reusability and prevents system-level scaling.
 
-### Rationale
-Mixing structure and meaning leads to non-reusable, non-scalable pipelines.
+**Enforced By**
+- Bronze/Silver: structure only
+- Gold: meaning via contracts
 
-### Allowed
-- Flattening nested JSON (Silver)
-- Business mapping using contracts (Gold)
+**Violation Result**  
+Pipelines become source-specific and non-reusable.
 
-### Forbidden
-- Business logic in Bronze or Silver
-- Source-specific assumptions in Gold
+## 2. Configuration-Driven Behavior
 
-## 2. Bronze Immutability
-
-### Statement
-Bronze must remain a lossless, immutable representation of source data.
-
-### Scope
-Bronze layer
-
-### Rationale
-Ensures reproducibility and protects against upstream inconsistencies.
-
-### Allowed
-- Raw data storage
-- Append-only writes
-
-### Forbidden
-- Modifying raw payloads
-- Dropping fields
-- Applying transformations
-
-## 3. Configuration-Driven Behavior
-
-### Statement
+**Invariant**  
 All system variability must be externalized via configuration.
 
-### Scope
-All layers
+**Why**  
+Hardcoding prevents multi-tenant scaling and adaptability.
 
-### Rationale
-Hardcoding prevents scalability and multi-tenant reuse.
+**Enforced By**
+- contracts
+- config-driven mappings
 
-### Allowed
-- JSON-based contracts
-- Environment-specific configs
+**Violation Result**  
+Logic forks across clients → system fragmentation.
 
-### Forbidden
-- Inline business logic
-- Hardcoded paths or rules
+## 3. Engine Agnosticism
 
-### Examples
-✔ location mapping via config  
-✘ if company == "X": logic
+**Invariant**  
+Pipeline logic must not depend on execution engine.
 
-## 4. Engine Agnosticism
+**Why**  
+Ensures portability across Pandas, Spark, and future engines.
 
-### Statement
-Pipeline logic must be independent of execution engine.
+**Enforced By**
+- abstraction layer
+- engine-agnostic transformations
 
-### Scope
-Core + transformations
+**Violation Result**  
+System becomes locked to one execution environment.
 
-### Rationale
-Ensures portability across Pandas and Spark environments.
+## 4. Schema Discovery Before Enforcement
 
-### Allowed
-- Engine abstraction layer
-- Config-based engine selection
+**Invariant**  
+No schema may be assumed before it is discovered from data.
 
-### Forbidden
-- Exposed engine-specific logic in transformations
+**Why**  
+External sources are inherently inconsistent and evolving.
 
-### Examples
-✔ same logic runs on Pandas/Spark  
-✘ using Spark-only APIs in core logic
+**Enforced By**
+- pre-flatten schema discovery
+- global column union
 
-## 5. Schema Discovery
+**Violation Result**  
+Data loss or incomplete representation.
 
-### Statement
-Assume no prior knowledge about expected columns in nested raw JSON files.
+## 5. Fail-Loud Structural Validation 
 
-### Scope
-Silver
+**Invariant**  
+All external data must pass strict structural validation before being processed.
 
-### Rationale
-Different reports from different entities might include different columns/column_names.  
-Enforcing predefined columns introduce schema drift or incomplete data capture.
+**Why**  
+Silent misinterpretation is more dangerous than failure.
 
-### Allowed
-- Schema discovery run based on targeted data files
+**Enforced By**
+- validation gates:
+    - presence → KeyError
+    - type → TypeError
+    - content → ValueError
+- exhaustive classification (no fallback paths)
 
-### Forbidden
-- Hardcode expected column names in external config and enforce it in Silver flattening
+**Violation Result**  
+Silent data corruption under schema drift.
 
+## 6. Classification Closure
 
+**Invariant**  
+Every structured input must map to exactly one known type.
 
+**Why**  
+Partial or ambiguous classification leads to undefined behavior.
 
+**Enforced By**
+- closed set of node types
+- no default / fallback logic
 
+**Violation Result**  
+Hidden logic branches and inconsistent outputs.
 
+# Missing Invariants (Planned)
 
+These define future system hardening areas.
 
-
-
-
-
-
-
-
-
-
-
-# Missing Invariants
-
-
-## 1. Failure invariants
-- partial ingestion failures
+**Failure Invariants**
+- partial ingestion handling
 - retry idempotency
-- corrupted Bronze states
-## 2. Time invariants
+- corrupted Bronze recovery
+
+**Time Invariants**
 - incremental processing
 - late-arriving data
-- backfills vs real-time
-## 3. Scale invariants
-- memory pressure
-- skewed partitions
-- API rate limiting at scale
-## 4. Trust invariants
+- backfill correctness
+
+**Scale Invariants**
+- memory pressure handling
+- partition skew
+- API rate limiting
+
+**Trust Invariants**
 - data validation
 - reconciliation
-- “can finance trust this number?”
+- auditability (“can finance trust this number?”)
