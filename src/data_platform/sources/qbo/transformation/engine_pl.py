@@ -39,6 +39,8 @@ def transform_pl_spark(tasks: list[TaskRecord], scope:range|list[int], spark:Spa
         - `scope`: `range` or list of integers representing fiscal_years for the flatten job
         - `spark`: `SparkSession` object for performing actual spark jobs
         - `path_config`: the external path config JSON file, dictionary format
+    Note:
+        - - missing `fiscal_year` (invalid date column) ignored in writes, but is included in returning df
     """
 
     # figure out the bronze path
@@ -101,6 +103,7 @@ def transform_pl_pandas(tasks: list[TaskRecord], scope:range|list[int], path_con
         - `path_config`: the external path config JSON file, dictionary format
     Note:
         - one parquet per fiscal year
+        - missing `fiscal_year` (invalid date column) ignored in writes, but is included in returning df
     Warning:
         - all data will be held in memory
     """
@@ -120,16 +123,14 @@ def transform_pl_pandas(tasks: list[TaskRecord], scope:range|list[int], path_con
     df = df.drop_duplicates()
 
     df = create_fiscal_year(df=df, date_col="date", cut_off=11)
-
-    df = df[df["fiscal_year"].isin(list(scope))]
     print(f"Total rows processed: {len(df)}")
 
     # saving
     pl_path = Path(path_config["root"]) / path_config["silver"]["pl"] / "pandas"
-    for fy, chunk in df.groupby("fiscal_year", sort=False):
+    for fy, chunk in df[df["fiscal_year"].isin(scope)].groupby("fiscal_year", sort=False):
         save_path = pl_path / f"fiscal_year={fy}"
         save_path.mkdir(exist_ok=True, parents=True)
-        chunk.to_parquet(path=save_path/"pl.parquet")
+        chunk.to_parquet(path=save_path/"data.parquet")
     return df
     
 
