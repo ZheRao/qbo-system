@@ -41,3 +41,38 @@ Unknown structure must be treated as invalid.
 ### Notes
 
 Prevents silent data corruption under schema drift.
+
+## [2026-04-12] — Concurrent Auth Mutation in Distributed Ingestion
+
+### Context
+- Source: QBO API
+- Layer: Ingestion (Auth + Extraction)
+- Component: Auth handling under Spark execution
+
+### Risk
+
+Multiple Spark partitions could concurrently refresh and write auth state for the same company, leading to race conditions and inconsistent auth files.
+
+### Root Cause
+
+Auth refresh and persistence were embedded inside extraction logic, which is executed in a distributed, unordered, and retryable environment.
+
+### System Insight
+
+Control-plane state mutation is not compatible with distributed execution.  
+Auth refresh is inherently single-writer and order-sensitive, while Spark execution is parallel and non-deterministic.
+
+### New / Updated Invariant
+- Auth refresh must not occur inside distributed workers
+- Shared auth state must not be mutated concurrently
+- Distributed tasks may only consume auth state, never modify it
+
+### Implementation Change
+- Moved auth refresh into a preflight sequential step (driver-only)
+- Constructed a per-run auth snapshot for all companies
+- Broadcast auth snapshot to workers as read-only input
+- Removed all auth write logic from partition-level execution
+
+### Notes
+
+Prevents race conditions, inconsistent auth state, and non-deterministic pipeline behavior under Spark execution.
