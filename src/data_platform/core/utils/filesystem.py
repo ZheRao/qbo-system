@@ -54,7 +54,7 @@ def atomic_write_bytes(dst: Path, data: bytes) -> None:
         - `dst`: destination path (including the filename at the end)
         - `data`: serialized bytes
     """
-    ensure_dir(dst.parents)
+    ensure_dir(dst.parent)
     tmp = dst.with_name(f".{dst.name}.{uuid.uuid4().hex}.tmp")
 
     try:
