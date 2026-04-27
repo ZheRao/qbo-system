@@ -7,7 +7,7 @@ Purpose:
 Exposed API:
     - `read_configs()` - given `source_system`, `config_type` and `name`, read and return the config file
     - `ensure_dir()` - ensures path exists, create if not
-    - `atomic_write()` - generic atomic method for bytes
+    - `atomic_write_bytes()` - generic atomic method for bytes
 """
 
 
