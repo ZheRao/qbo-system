@@ -1,0 +1,11 @@
+{
+    "system/spark.json": {
+        "default": {
+            "spark.sql.session.timeZone": true,
+            "spark.ui.showConsoleProgress": true,
+            "spark.sql.shuffle.partitions": true,
+            "spark.driver.memory": true,
+            "spark.sql.sources.partitionOverwriteMode": true
+        }
+    }
+}

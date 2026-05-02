@@ -1,0 +1,62 @@
+{
+  "io/path.json": {
+    "root": true,
+    "bronze": {
+      "pl": true,
+      "gl": true
+    },
+    "silver": {
+      "pl": true,
+      "gl": true
+    },
+    "windows": {
+      "root": true,
+      "secret": {
+        "qbo": true
+      }
+    }
+  },
+  "assumptions/data_structure.json": {
+    "silver": {
+        "nested_reports": {
+            "no_id_cols": true
+        }
+    }
+  },
+  "contracts/facts.json":{
+    "company_codes": true,
+    "commodities": {
+        "Produce": true,
+        "Grain": true,
+        "Cattle": true
+    },
+    "locations": {
+        "Produce": true,
+        "Cattle": true,
+        "Grain": true,
+        "Seed": true,
+        "Others": true
+    },
+    "bc_ranches": true
+  },
+  "contracts/workspace_entity.json": {
+    "CA": true,
+    "USA": true
+  },
+  "state/fx.json": {
+    "fx": true,
+    "timestamp": true,
+    "source": true
+  },
+  "system/spark.json": {
+    "run_time": {
+        "num_cores": true,
+        "slice_multiplier": true,
+        "partition_per": true
+    },
+    "write": {
+        "mode": true,
+        "format": true
+    }
+  }
+}
