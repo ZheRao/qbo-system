@@ -93,11 +93,11 @@ def read_configs(source_system: str, config_type: str, name: str) -> dict:
     
     Raises:
         - FileNotFoundError:
-            if the config file does not exist
+            - if the config file does not exist
         - ValueError:
-            if the JSON is invalid
+            - if the JSON is invalid
         - validation errors:
-            if the JSON file is not the expected shape
+            - if the JSON file is not the expected shape
     """
     # define config file path and load it
     package = (
